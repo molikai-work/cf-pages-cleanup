@@ -15,7 +15,7 @@
 
 ## 使用
 这非常简单，您只需要分叉此仓库，然后在您分叉的仓库的 Actions 页面启用工作流，  
-然后进入仓库 Settings 页面，在左侧边栏的 Security 项下找到 Secrets 和 variables，然后进入 Actions，  
+然后进入仓库 Settings 页面，在左侧边栏的 Security 项下找到 Secrets and variables，然后进入 Actions，  
 添加 Secrets，分别是：`CF_ACCOUNT_ID`、`CF_API_TOKEN`、`CF_DELETE_ALIASED_DEPLOYMENTS`，  
 - `CF_ACCOUNT_ID`：您的 Cloudflare 账户 ID
 - `CF_API_TOKEN`：您的 Cloudflare API Token，需要有账户 Cloudflare Pages 的编辑权限
