@@ -1,10 +1,10 @@
-name: Cleanup Cloudflare Pages Deployments
+name: 清理 Cloudflare Pages 部署
 
 on:
   workflow_dispatch:
     inputs:
       CF_PAGES_PROJECT_NAME:
-        description: 'Cloudflare Pages Project Name'
+        description: 'Cloudflare Pages 项目名称'
         required: true
         type: string
 

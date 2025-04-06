@@ -17,7 +17,7 @@ const headers = {
   Authorization: `Bearer ${CF_API_TOKEN}`,
 };
 
-/** 获取生产环境的 deployment ID */
+/** 获取生产环境的部署 ID */
 async function getProductionDeploymentId() {
   const response = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT_NAME}`,
@@ -32,7 +32,7 @@ async function getProductionDeploymentId() {
   }
   const prodDeploymentId = body.result.canonical_deployment.id;
   if (!prodDeploymentId) {
-    throw new Error('无法获取生产环境 deployment ID');
+    throw new Error('无法获取生产环境部署 ID');
   }
   return prodDeploymentId;
 }
@@ -40,7 +40,7 @@ async function getProductionDeploymentId() {
 async function deleteDeployment(id) {
   let params = '';
   if (CF_DELETE_ALIASED_DEPLOYMENTS === 'true') {
-    params = '?force=true'; // 强制删除别名 deployment
+    params = '?force=true';
   }
   const response = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT_NAME}/deployments/${id}${params}`,
@@ -53,7 +53,7 @@ async function deleteDeployment(id) {
   if (!body.success) {
     throw new Error(body.errors[0].message);
   }
-  console.log(`已删除 deployment ${id}（项目：${CF_PAGES_PROJECT_NAME}）`);
+  console.log(`已删除 ${CF_PAGES_PROJECT_NAME} 的部署：${id}`);
 }
 
 async function listDeploymentsPerPage(page) {
@@ -66,7 +66,7 @@ async function listDeploymentsPerPage(page) {
   );
   const body = await response.json();
   if (!body.success) {
-    throw new Error(`无法获取项目 ${CF_PAGES_PROJECT_NAME} 的 deployments`);
+    throw new Error(`无法获取项目 ${CF_PAGES_PROJECT_NAME} 的部署 ID`);
   }
   return body.result;
 }
@@ -83,13 +83,13 @@ async function listAllDeployments() {
         startingDelay: 1000, // 延迟 1s
         retry: (_, attempt) => {
           console.warn(
-            `获取第 ${page} 页 deployments 失败，重试中 (${attempt}/${MAX_ATTEMPTS})`
+            `获取第 ${page} 页的部署 ID 失败，重试中 (${attempt}/${MAX_ATTEMPTS})`
           );
           return true;
         },
       });
     } catch (err) {
-      console.warn(`无法获取第 ${page} 页的 deployments`);
+      console.warn(`无法获取第 ${page} 页的部署 ID`);
       console.warn(err);
       process.exit(1);
     }
@@ -119,14 +119,14 @@ async function main() {
   }
 
   const productionDeploymentId = await getProductionDeploymentId();
-  console.log(`生产环境 deployment（跳过删除）：${productionDeploymentId}`);
+  console.log(`生产环境部署（跳过删除）：${productionDeploymentId}`);
 
-  console.log('正在列出所有 deployment，可能需要一些时间...');
+  console.log('正在列出所有部署，这可能需要一些时间...');
   const deploymentIds = await listAllDeployments();
 
   for (const id of deploymentIds) {
     if (id === productionDeploymentId) {
-      console.log(`跳过生产环境 deployment: ${id}`);
+      console.log(`跳过生产环境部署：${id}`);
     } else {
       try {
         await deleteDeployment(id);
