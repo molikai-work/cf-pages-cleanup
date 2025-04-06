@@ -1,0 +1,41 @@
+name: Cleanup Cloudflare Pages Deployments
+
+on:
+  workflow_dispatch:
+    inputs:
+      parameters:
+        description: 'JSON 格式的输入参数，如：{"CF_API_TOKEN": "xxx", "CF_ACCOUNT_ID": "xxx", "CF_PAGES_PROJECT_NAME": "xxx", "CF_DELETE_ALIASED_DEPLOYMENTS": "false"}'
+        required: true
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Parse input parameters
+        id: parse_inputs
+        run: |
+          echo "INPUT_PARAMS=${{ github.event.inputs.parameters }}" >> $GITHUB_ENV
+          # 使用 jq 从 JSON 中提取各个参数，并设置到环境变量中
+          CF_API_TOKEN=$(echo "${{ github.event.inputs.parameters }}" | jq -r '.CF_API_TOKEN')
+          CF_ACCOUNT_ID=$(echo "${{ github.event.inputs.parameters }}" | jq -r '.CF_ACCOUNT_ID')
+          CF_PAGES_PROJECT_NAME=$(echo "${{ github.event.inputs.parameters }}" | jq -r '.CF_PAGES_PROJECT_NAME')
+          CF_DELETE_ALIASED_DEPLOYMENTS=$(echo "${{ github.event.inputs.parameters }}" | jq -r '.CF_DELETE_ALIASED_DEPLOYMENTS')
+          echo "CF_API_TOKEN=${CF_API_TOKEN}" >> $GITHUB_ENV
+          echo "CF_ACCOUNT_ID=${CF_ACCOUNT_ID}" >> $GITHUB_ENV
+          echo "CF_PAGES_PROJECT_NAME=${CF_PAGES_PROJECT_NAME}" >> $GITHUB_ENV
+          echo "CF_DELETE_ALIASED_DEPLOYMENTS=${CF_DELETE_ALIASED_DEPLOYMENTS}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Run Cleanup Script
+        run: node index.js
