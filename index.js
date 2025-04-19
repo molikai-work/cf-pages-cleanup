@@ -79,7 +79,7 @@ async function listAllDeployments(projectName) {
     let result;
     try {
       result = await backOff(() => listDeploymentsPerPage(projectName, page), {
-        numOfAttempts: 5,
+        numOfAttempts: MAX_ATTEMPTS,
         startingDelay: 1000, // 延迟 1s
         retry: (_, attempt) => {
           console.warn(
