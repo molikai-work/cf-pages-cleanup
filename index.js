@@ -80,7 +80,7 @@ async function listAllDeployments(projectName) {
     try {
       result = await backOff(() => listDeploymentsPerPage(projectName, page), {
         numOfAttempts: MAX_ATTEMPTS,
-        startingDelay: 1000, // 延迟 1s
+        startingDelay: 1000, // 初始延迟 1s
         retry: (_, attempt) => {
           console.warn(
             `获取 ${projectName} 第 ${page} 页的部署 ID 失败，重试中 (${attempt}/${MAX_ATTEMPTS})`
@@ -100,7 +100,7 @@ async function listAllDeployments(projectName) {
 
     if (result.length) {
       page = page + 1;
-      await sleep(500);
+      await sleep(300);
     } else {
       return deploymentIds;
     }
@@ -122,7 +122,7 @@ async function processProject(projectName) {
     } else {
       try {
         await deleteDeployment(id, projectName);
-        await sleep(500);
+        await sleep(300);
       } catch (error) {
         console.log(error);
       }
