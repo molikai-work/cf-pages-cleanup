@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
 const { backOff } = require('exponential-backoff');
-const pLimit = require('p-limit');
+const pLimit = (await import('p-limit')).default;
 
 const CF_API_TOKEN = process.env.CF_API_TOKEN;
 const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
