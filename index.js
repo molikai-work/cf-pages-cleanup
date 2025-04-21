@@ -144,6 +144,8 @@ async function main() {
   for (const projectName of CF_PAGES_PROJECT_NAMES) {
     await processProject(projectName.trim());
   }
+
+  console.log('所有项目已处理完成');
 }
 
 main();
