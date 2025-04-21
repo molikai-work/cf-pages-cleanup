@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
 const { backOff } = require('exponential-backoff');
+const pLimit = require('p-limit');
 
 const CF_API_TOKEN = process.env.CF_API_TOKEN;
 const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
@@ -7,11 +8,9 @@ const CF_PAGES_PROJECT_NAMES = process.env.CF_PAGES_PROJECT_NAME.split(',');
 const CF_DELETE_ALIASED_DEPLOYMENTS = process.env.CF_DELETE_ALIASED_DEPLOYMENTS;
 
 const MAX_ATTEMPTS = 5;
+const CONCURRENCY_LIMIT = 3;
 
-const sleep = (ms) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const headers = {
   Authorization: `Bearer ${CF_API_TOKEN}`,
@@ -42,18 +41,31 @@ async function deleteDeployment(id, projectName) {
   if (CF_DELETE_ALIASED_DEPLOYMENTS === 'true') {
     params = '?force=true';
   }
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${projectName}/deployments/${id}${params}`,
-    {
-      method: 'DELETE',
-      headers,
+
+  await backOff(async () => {
+    const response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${projectName}/deployments/${id}${params}`,
+      {
+        method: 'DELETE',
+        headers,
+      }
+    );
+    if (response.status === 429) {
+      throw new Error('429 Too Many Requests');
     }
-  );
-  const body = await response.json();
-  if (!body.success) {
-    throw new Error(body.errors[0].message);
-  }
-  console.log(`已删除 ${projectName} 的部署：${id}`);
+    const body = await response.json();
+    if (!body.success) {
+      throw new Error(body.errors[0].message);
+    }
+    console.log(`已删除 ${projectName} 的部署：${id}`);
+  }, {
+    numOfAttempts: MAX_ATTEMPTS,
+    startingDelay: 1000, // 初始延迟 1s
+    retry: (error, attempt) => {
+      console.warn(`删除部署 ${id} 出现错误：${error.message}，重试中 (${attempt}/${MAX_ATTEMPTS})`);
+      return true;
+    }
+  });
 }
 
 async function listDeploymentsPerPage(projectName, page) {
@@ -73,18 +85,16 @@ async function listDeploymentsPerPage(projectName, page) {
 
 async function listAllDeployments(projectName) {
   let page = 1;
-  const deploymentIds = [];
+  const deployments = [];
 
   while (true) {
     let result;
     try {
       result = await backOff(() => listDeploymentsPerPage(projectName, page), {
         numOfAttempts: MAX_ATTEMPTS,
-        startingDelay: 1000, // 延迟 1s
+        startingDelay: 1000,
         retry: (_, attempt) => {
-          console.warn(
-            `获取 ${projectName} 第 ${page} 页的部署 ID 失败，重试中 (${attempt}/${MAX_ATTEMPTS})`
-          );
+          console.warn(`获取 ${projectName} 第 ${page} 页的部署 ID 失败，重试中 (${attempt}/${MAX_ATTEMPTS})`);
           return true;
         },
       });
@@ -94,15 +104,13 @@ async function listAllDeployments(projectName) {
       process.exit(1);
     }
 
-    for (const deployment of result) {
-      deploymentIds.push(deployment.id);
-    }
+    deployments.push(...result);
 
     if (result.length) {
-      page = page + 1;
+      page++;
       await sleep(500);
     } else {
-      return deploymentIds;
+      return deployments;
     }
   }
 }
@@ -114,20 +122,19 @@ async function processProject(projectName) {
   console.log(`生产环境部署（跳过删除）：${productionDeploymentId}`);
 
   console.log(`正在列出 ${projectName} 的所有部署，这可能需要一些时间...`);
-  const deploymentIds = await listAllDeployments(projectName);
+  const deployments = await listAllDeployments(projectName);
 
-  for (const id of deploymentIds) {
-    if (id === productionDeploymentId) {
-      console.log(`跳过 ${projectName} 的生产环境部署：${id}`);
-    } else {
-      try {
-        await deleteDeployment(id, projectName);
-        await sleep(500);
-      } catch (error) {
-        console.log(error);
-      }
+  const limit = pLimit(CONCURRENCY_LIMIT);
+
+  const deleteTasks = deployments.map(deployment => {
+    if (deployment.id === productionDeploymentId) {
+      console.log(`跳过 ${projectName} 的生产环境部署：${deployment.id}`);
+      return Promise.resolve();
     }
-  }
+    return limit(() => deleteDeployment(deployment.id, projectName));
+  });
+
+  await Promise.all(deleteTasks);
 }
 
 async function main() {

@@ -1,10 +1,11 @@
 {
   "name": "cf-pages-cleanup",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
     "node-fetch": "^2.6.1",
-    "exponential-backoff": "^2.0.0"
+    "exponential-backoff": "^2.0.0",
+    "p-limit": "^6.2.0"
   }
 }
