@@ -145,7 +145,7 @@ async function main() {
     await processProject(projectName.trim());
   }
 
-  console.log('所有项目已处理完成');
+  console.log('\n所有项目均已处理完成');
 }
 
 main();
